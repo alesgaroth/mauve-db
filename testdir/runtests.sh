@@ -5,7 +5,7 @@ tries=0
 if [ -n "$1" ] ;then
 	CMD=$1
 else
-	CMD=mauve
+	CMD=../src/mauve
 fi
 
 for file in [ft][ae][si][tl]*; do 

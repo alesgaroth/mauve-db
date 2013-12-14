@@ -2,9 +2,6 @@
 #include <stdlib.h>
 #include "sqlparser.h"
 
-#define YY_NULL 0
-typedef void *yyscan_t;
-char *yyget_text (yyscan_t yyscanner );
 void createNewDatabase(char *strval);
 void dropDatabase(char *strval);
 int report(yyscan_t scandata, const char*note);
@@ -36,7 +33,7 @@ int main(int argc, char **argv){
 	if (expression){
 	}else {
 		int parseval;
-		while(parseval  = yylex(scandata)){
+		while((parseval  = yylex(scandata))){
 			switch(parseval){
 			case CREATE:
 				switch(yylex(scandata)){
