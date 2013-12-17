@@ -24,6 +24,9 @@ int main(int argc, char **argv){
 			}
 		}
 	}
+	if (strcmp(username, "root") || strcmp(password, "password")){
+		return 1;
+	}
 	struct yydata data = {NULL};
 	yyscan_t scandata;
 	if(yylex_init_extra(&data,&scandata)){
@@ -83,6 +86,7 @@ int main(int argc, char **argv){
 	}
 	yylex_destroy(scandata);
 	scandata = NULL;
+	return 0;
 }
 int report(yyscan_t scandata, const char *note){
 	fprintf(stderr, "%s:%d:%d parser error %s %s\n",
