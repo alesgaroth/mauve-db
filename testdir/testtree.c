@@ -76,29 +76,45 @@ struct testdata {
 	{ "twenty", "duodeco"}
 };
 
-int main(int argc, char **argv){
-	Row r = newRow("mydatabase", "bob");
+TreeNode doinsert(TreeNode tn, char *key, char *value, char *file, int line){
+	Row r = newRow(key, value);
 	struct lookUp lu = { RowMatcher, r};
-	TreeNode tn = tree_insert(NULL, r, &lu);
-	if (!tn) report("expected tree_insert;  returned NULL;");
-	r = newRow("myseconddb", "john");
-	lu = (struct lookUp){ RowMatcher, r};
 	tn = tree_insert(tn, r, &lu);
-	if (!tn) report("expected tree_insert(2);  returned NULL;");
-	lu = (struct lookUp){ RowMatcher2, "mydatabase"};
+	if (!tn) reporter(file, line, "expected tree_insert;  returned NULL;");
+	return tn;
+}
+void dolookup(TreeNode tn, char *key, char *value, char *file, int line){
+	struct lookUp lu = (struct lookUp){ RowMatcher2, key};
 	Row v = tree_findSingle(tn, &lu);
-	if (strcasecmp(((struct row*)v)->value, "bob")) report("looked up by key failed 1");
-	
-	lu = (struct lookUp){ RowMatcher2, "myseconddb"};
-	v = tree_findSingle(tn, &lu);
-	if (!v) report("looked up by key failed 2");
-	if (strcasecmp(((struct row*)v)->value, "john")) report("looked up by key failed 3");
+	if (!v) reporter(file, line, "looked up by key failed");
+	if (strcasecmp(((struct row*)v)->value, value)) reporter(file, line, "looked up by key failed");
+}
+
+int main(int argc, char **argv){
+
+	TreeNode tn = doinsert(NULL, "mydatabase", "bob", __FILE__, __LINE__);
+	tn = doinsert(tn, "myseconddb", "john", __FILE__, __LINE__);
+
+	dolookup(tn, "mydatabase", "bob", __FILE__, __LINE__);
+	dolookup(tn, "myseconddb", "john", __FILE__, __LINE__);
+
 	TreeNode tn2 = tn;
 	for(int j; j < 20; j += 1){
-		r = newRow(testdata[j].key, testdata[j].value);
-		lu = (struct lookUp){RowMatcher, r};
-		tn = tree_insert(tn, r, &lu);
-		if (!tn) report("insert failed j");
+		tn = doinsert(tn, testdata[j].key, testdata[j].value, __FILE__, __LINE__);
 	}
+
+	
+	struct lookUp lu = (struct lookUp){ RowMatcher2, "four"};
+	Row v = tree_findSingle(tn2, &lu);
+	if (v) report("found four in the tree we should not have");
+
+	dolookup(tn, "four", "quatro", __FILE__, __LINE__);
+
+	for(int j; j < 20; j += 1){
+		dolookup(tn, testdata[j].key, testdata[j].value, __FILE__, __LINE__);
+	}
+
+	dolookup(tn, "myseconddb", "john", __FILE__, __LINE__);
+
 	return 0;
 }
