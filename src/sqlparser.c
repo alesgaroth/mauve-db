@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "sqlparser.h"
+#include <string.h>
 
 void createNewDatabase(char *strval);
 void dropDatabase(char *strval);

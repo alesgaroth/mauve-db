@@ -8,6 +8,7 @@ else
 	CMD=../src/mauve
 fi
 
+rm -f *.exe *.o
 
 for file in [ft][ae][si][tl]*; do 
 	tries=$((tries + 1))

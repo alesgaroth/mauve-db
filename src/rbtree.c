@@ -1,12 +1,13 @@
 #include "memman.h"
 #include <assert.h>
 #include "rbtree.h"
+#include <stdio.h>
 
 
 struct treeNode {
 	Row datum;
-	TreeNode right;
 	TreeNode left;
+	TreeNode right;
 };
 
 
@@ -103,7 +104,7 @@ static TreeNode rebalance(Row r, TreeNode left, TreeNode right, enum colors colo
 				blacken(leftof(left)),
 				newTreeNode(r, rightof(left), right, Black), Red);
 		} else if (isred(left) && isred(rightof(left))){
-			return newTreeNode(rowof(leftof(left)),
+			return newTreeNode(rowof(rightof(left)),
 				newTreeNode(rowof(left), leftof(left), leftof(rightof(left)), Black),
 				newTreeNode(r, rightof(rightof(left)), right, Black), Red);
 		}else if (isred(right) && isred(leftof(right))){
@@ -112,7 +113,7 @@ static TreeNode rebalance(Row r, TreeNode left, TreeNode right, enum colors colo
 				newTreeNode(rowof(right), rightof(leftof(right)), rightof(right), Black), Red);
 		} else if(isred(right) && isred(rightof(right))){
 			return newTreeNode(rowof(right),
-				newTreeNode(left, r, leftof(right), Black),
+				newTreeNode(r, left, leftof(right), Black),
 				blacken(rightof(right)), Red);
 		}
 	}
@@ -137,4 +138,32 @@ TreeNode tree_insert(TreeNode tn, Row newrow, struct lookUp*lu){
 	//if (!tn) return newrow;
 	struct insertData id = {newrow, lu};
 	return blacken(ins(tn, &id));
+}
+
+void printN(int n){
+	for(; n >= 0; n -= 1){
+		putchar(' ');
+	}
+}
+
+void printTree2(TreeNode tn, int depth){
+	if (!tn) {
+		printN(depth);
+		printf("NULL\n");
+		return;
+	}
+	if (!istreenode(tn)) {
+		printN(depth);
+		printf("non tree node:%p\n", tn);
+		return;
+	}
+	struct treeNode*t =treenode(tn);
+	printTree2(t->left, depth+1);
+	printN(depth);
+	printf("%p :  %p\n", tn, t->datum); 
+	printTree2(t->right, depth+1);
+}
+
+void printTree(TreeNode tn){
+	printTree2(tn, 0);
 }

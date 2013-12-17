@@ -31,7 +31,7 @@ int RowMatcher(Row r_, Closure c){
 }
 Row newRow(char *name, char *value){
 	struct row *r= malloc(sizeof(*r));
-	r->size = (2<<3)|5;
+	r->size = (3<<3)|5;
 	r->name = name;
 	r->value = value;
 	return r;
@@ -50,6 +50,32 @@ void reporter(const char *file, int line, const char *error){
 	exit(1);
 }
 
+struct testdata {
+	char *key;
+	char *value;
+} testdata [] = {
+	{ "one", "uno"},
+	{ "two", "duo"},
+	{ "three", "trio"},
+	{ "four", "quatro"},
+	{ "five", "cinco"},
+	{ "six", "seiso"},
+	{ "seven", "septo"},
+	{ "eight", "octo"},
+	{ "nine", "nono"},
+	{ "ten", "deco"},
+	{ "eleven", "decuno"},
+	{ "twelve", "decduo"},
+	{ "thirteen", "dectrio"},
+	{ "fourteen", "decquatro"},
+	{ "fifteen", "deccinco"},
+	{ "sixteen", "decseiso"},
+	{ "seventeen", "decsepto"},
+	{ "eighteen", "decocto"},
+	{ "nineteen", "decnono"},
+	{ "twenty", "duodeco"}
+};
+
 int main(int argc, char **argv){
 	Row r = newRow("mydatabase", "bob");
 	struct lookUp lu = { RowMatcher, r};
@@ -67,5 +93,12 @@ int main(int argc, char **argv){
 	v = tree_findSingle(tn, &lu);
 	if (!v) report("looked up by key failed 2");
 	if (strcasecmp(((struct row*)v)->value, "john")) report("looked up by key failed 3");
+	TreeNode tn2 = tn;
+	for(int j; j < 20; j += 1){
+		r = newRow(testdata[j].key, testdata[j].value);
+		lu = (struct lookUp){RowMatcher, r};
+		tn = tree_insert(tn, r, &lu);
+		if (!tn) report("insert failed j");
+	}
 	return 0;
 }
