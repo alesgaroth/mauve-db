@@ -3,6 +3,9 @@
 #include "../src/rbtree.h"
 #include <strings.h>
 
+typedef void (*PrintRow)(Row);
+void printTree(TreeNode tn, PrintRow pr);
+
 /*
 typedef int (*Matcher)(Row datum, Closure c);
 
@@ -89,6 +92,23 @@ void dolookup(TreeNode tn, char *key, char *value, char *file, int line){
 	if (!v) reporter(file, line, "looked up by key failed");
 	if (strcasecmp(((struct row*)v)->value, value)) reporter(file, line, "looked up by key failed");
 }
+void dolookupf(TreeNode tn, char *key, char *file, int line){
+	struct lookUp lu = (struct lookUp){ RowMatcher2, key};
+	Row v = tree_findSingle(tn, &lu);
+	if (v) reporter(file, line, "found key in the tree we should not have");
+}
+
+TreeNode dodelete(TreeNode tn, char *key, char *file, int line){
+	struct lookUp lu = (struct lookUp){ RowMatcher2, key};
+	tn = tree_deleteSingle(tn, &lu);
+	if (!tn) reporter(file, line, "expected tree_delete;  returned NULL;");
+	return tn;
+}
+
+void printRow(Row r_){
+	struct row *r = (struct row*)r_;
+	printf("%s: %s",  r->name, r->value);
+}
 
 int main(int argc, char **argv){
 
@@ -104,9 +124,7 @@ int main(int argc, char **argv){
 	}
 
 	
-	struct lookUp lu = (struct lookUp){ RowMatcher2, "four"};
-	Row v = tree_findSingle(tn2, &lu);
-	if (v) report("found four in the tree we should not have");
+	dolookupf(tn2, "four", __FILE__, __LINE__);
 
 	dolookup(tn, "four", "quatro", __FILE__, __LINE__);
 
@@ -115,6 +133,11 @@ int main(int argc, char **argv){
 	}
 
 	dolookup(tn, "myseconddb", "john", __FILE__, __LINE__);
+	printTree(tn, printRow);
+	tn = dodelete(tn, "myseconddb",  __FILE__, __LINE__);
+	printf("============delete myseconddb===========\n");
+	printTree(tn, printRow);
+	dolookupf(tn, "myseconddb",  __FILE__, __LINE__);
 
 	return 0;
 }

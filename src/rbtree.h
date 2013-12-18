@@ -24,5 +24,8 @@ TreeNode tree_insert(TreeNode tn, Row newrow, struct lookUp*lu);
 /* call matcher on the way down the tree. */
 void tree_lookup(TreeNode tn, struct lookUp *);
 
+/* delete the row */
+TreeNode tree_deleteSingle(TreeNode tn, struct lookUp *);
+
 /* find the first row that matches */
 Row tree_findSingle(TreeNode tn, struct lookUp *lu);
