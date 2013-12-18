@@ -1,10 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "sqlparser.h"
+#include <strings.h>
 #include <string.h>
+#include "memman.h"
+#include "rbtree.h"
 
-void createNewDatabase(char *strval);
-void dropDatabase(char *strval);
+
+TreeNode createNewDatabase(const char *strval, TreeNode tn);
+TreeNode dropDatabase(const char *strval, TreeNode tn);
 int report(yyscan_t scandata, const char*note);
 
 int main(int argc, char **argv){
@@ -34,6 +39,7 @@ int main(int argc, char **argv){
 		perror("yylex_init_extra:");
 		exit(3);
 	}
+	TreeNode tn = NULL;
 	if (expression){
 	}else {
 		int parseval;
@@ -49,7 +55,7 @@ int main(int argc, char **argv){
 						switch(yylex(scandata)){
 						case YY_NULL:  return report(scandata, "unexpected end of file");
 						case ';':
-							createNewDatabase(data.strval);
+							tn = createNewDatabase(data.strval, tn);
 							break;
 						default: return report(scandata, "Unexpected token:");
 						}
@@ -70,7 +76,7 @@ int main(int argc, char **argv){
 						switch(yylex(scandata)){
 						case YY_NULL:  return report(scandata, "unexpected end of file");
 						case ';':
-							dropDatabase(data.strval);
+							tn = dropDatabase(data.strval, tn);
 							break;
 						default: return report(scandata, "Unexpected token:");
 						}
@@ -96,9 +102,48 @@ int report(yyscan_t scandata, const char *note){
 	return 1;
 }
 
-void createNewDatabase(char *strval){
-	
+struct database {
+	long size; 
+	const char *name;
+};
+
+const char *string_dup(const char *val){
+	int len = strlen(val)+2;
+	assert(len < 127 || "don't support long string yet");
+	char *d = heap_alloc(len);
+	d[0] = len;
+	memcpy(d+1, val, len+1);
+	return d+1;
 }
-void dropDatabase(char *strval){
-	
+
+int sign(int v){
+	return (((v)==0)?0:(((v)<0)?-1:1));
+}
+
+int RowMatcher(Row r_, Closure c){
+	struct database *r = (struct database*)r_;
+	struct database *mr = (struct database*)c;
+	return sign(strcasecmp(r->name, mr->name));
+}
+
+TreeNode createNewDatabase(const char *strval, TreeNode tn){
+	strval = string_dup(strval);
+	struct database * db = heap_alloc(sizeof(*db));
+	db->size = sizeof(*db)/sizeof(long);
+	db->name = strval;
+	struct lookUp lu = { RowMatcher, db};
+	if(tree_findSingle(tn, &lu)){
+		fprintf(stderr, "Error: Database %s already exists\n", strval);
+		exit(1);
+	}
+	return tree_insert(tn, db, &lu);
+}
+TreeNode dropDatabase(const char *strval, TreeNode tn){
+	struct database db = {0, strval};
+	struct lookUp lu = (struct lookUp){ RowMatcher, &db};
+	if(!tree_findSingle(tn, &lu)){
+		fprintf(stderr, "Error: Database %s does not exist\n", strval);
+		exit(1);
+	}
+	return tree_deleteSingle(tn, &lu);
 }

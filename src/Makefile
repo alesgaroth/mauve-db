@@ -4,7 +4,7 @@ LD=gcc
 tests: mauve ../testdir/runtests.sh
 	cd ../testdir/; bash runtests.sh
 	
-mauve:sqlparser.o lex.yy.o
+mauve: sqlparser.o lex.yy.o memman.o rbtree.o
 	$(LD) -o mauve $^
 lex.yy.c:
 	flex -iR scn.l
