@@ -19,7 +19,7 @@ PRIMARY { return PRIMARY; }
 KEY { return KEY; }
 AUTO_INCREMENT { return AUTO_INCREMENT; }
 
-[;)(,] { return yytext[0];}
+[;)(,.] { return yytext[0];}
 [A-Za-z][A-Za-z0-9_]* { yylval.strval = yytext; return NAME; }
 [0-9][0-9]* { yylval.strval = yytext; return NUMBER; }
 

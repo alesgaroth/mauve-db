@@ -12,6 +12,7 @@ TreeNode createIndexes(void);
 TreeNode createNewDatabase(const char *strval, TreeNode tn);
 TreeNode dropDatabase(const char *strval, TreeNode tn);
 TreeNode createNewTable(const char *db, const char *tablename, TreeNode tn);
+TreeNode dropTable(const char *db, const char *table, TreeNode tni);
 TreeNode createNewColumn(const char *db, const char *tablename, const char *columnname,
 	const char *type, int isprimarykey, int auto_increment, int notnullable, TreeNode tn);
 int report(yyscan_t scandata, const char*note);
@@ -96,6 +97,7 @@ int main(int argc, char **argv){
 							case NAME:
 								tablename = string_dup(data.strval);
 								break;
+							default: return report(scandata, "Unexpected token:");
 							}
 							switch(yylex(scandata)){
 							case YY_NULL:  return report(scandata, "unexpected end of file");
@@ -211,6 +213,40 @@ int main(int argc, char **argv){
 					default: return report(scandata, "unExpected token:");
 					}
 					break;
+				case TABLE:
+					switch(yylex(scandata)){
+					case YY_NULL: return report(scandata, "unexpected end of file");
+					case NAME: {
+						const char *tablename = string_dup(data.strval);
+						const char *db = current_db;
+						switch(yylex(scandata)){
+						case YY_NULL:  return report(scandata, "unexpected end of file");
+						case '.':
+							db = tablename;
+							switch(yylex(scandata)){
+							case YY_NULL:  return report(scandata, "unexpected end of file");
+							case NAME:
+								tablename = string_dup(data.strval);
+								break;
+							default: return report(scandata, "Unexpected token:");
+							}
+							switch(yylex(scandata)){
+							case YY_NULL:  return report(scandata, "unexpected end of file");
+							case ';':
+								break;
+							default: return report(scandata, "Unexpected token:");
+							}
+							/* fall through */
+						case ';':
+							tn = dropTable(db, tablename, tn);
+							break;
+						default: return report(scandata, "Unexpected token:");
+						}
+						}
+						break;
+					default: return report(scandata, "unExpected token:");
+					}
+					break;
 				default: return report(scandata, "uneXpected token:");
 				}
 				break;
@@ -223,7 +259,7 @@ int main(int argc, char **argv){
 	return 0;
 }
 int report(yyscan_t scandata, const char *note){
-	fprintf(stderr, "%s:%d:%d parser error %s %s\n",
+	fprintf(stderr, "%s:%d:%d parser error %s '%s'\n",
 		"stdin", yyget_lineno(scandata), yyget_column(scandata),
 		note, yyget_text(scandata));
 	return 1;
@@ -347,11 +383,23 @@ TreeNode dropDatabase(const char *strval, TreeNode tni){
 	struct closure cl = {1, &db, {2}};
 	struct lookUp lu = (struct lookUp){ RowMatcher, &cl};
 	if(!tree_findSingle(tn, &lu)){
-		fprintf(stderr, "Error: Database %s does not exist\n", strval);
+		fprintf(stderr, "Error: Database %s does not exist\n",  strval);
 		exit(1);
 	}
 	tn = tree_deleteSingle(tn, &lu);
 	return storeIndex("databases_index", tn, tni);
+}
+TreeNode dropTable(const char *db, const char *tablename, TreeNode tni){
+	TreeNode tn = findIndex("tables_index", tni);
+	struct table t = {0, "", db, tablename};
+	struct closure cl = {1, &t, {2, 3}};
+	struct lookUp lu = (struct lookUp){ RowMatcher, &cl};
+	if(!tree_findSingle(tn, &lu)){
+		fprintf(stderr, "Error: Table %s.%s does not exist\n",  db, tablename);
+		exit(1);
+	}
+	tn = tree_deleteSingle(tn, &lu);
+	return storeIndex("tables_index", tn, tni);
 }
 TreeNode createNewTable(const char *db, const char *tablename, TreeNode tni){
 	if (!db) {
