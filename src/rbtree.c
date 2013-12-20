@@ -238,14 +238,20 @@ static TreeNode del(Row r, TreeNode left, TreeNode right, enum colors color, str
 	case 0:
 		if (left != NULL){
 			Row rightmostofleft = NULL;
-			left = deleteRightmost(rowof(left), leftof(left), rightof(left), &rightmostofleft),
+			left = deleteRightmost(rowof(left), leftof(left), rightof(left), &rightmostofleft);
 			assert(rightmostofleft != NULL && "rightmost returned null");
+			if (left == NULL && right == NULL){
+				return newTreeNode(rightmostofleft, NULL, NULL, Black);
+			}
 			return rebalance(rightmostofleft, left,
 				redden(right), Black);
 		}else if (right != NULL){
 			Row leftmostofright = NULL;
-			right = deleteLeftmost(rowof(right), leftof(right), rightof(right), &leftmostofright),
+			right = deleteLeftmost(rowof(right), leftof(right), rightof(right), &leftmostofright);
 			assert(leftmostofright != NULL && "leftmost returned null");
+			if (left == NULL && right == NULL){
+				return newTreeNode(leftmostofright, NULL, NULL, Black);
+			}
 			return rebalance(leftmostofright, redden(left),
 				right, Black);
 		} else {
