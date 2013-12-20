@@ -133,10 +133,12 @@ int main(int argc, char **argv){
 	}
 
 	dolookup(tn, "myseconddb", "john", __FILE__, __LINE__);
-	printTree(tn, printRow);
+	/*printTree(tn, printRow);*/
 	tn = dodelete(tn, "myseconddb",  __FILE__, __LINE__);
+#if 0
 	printf("============delete myseconddb===========\n");
 	printTree(tn, printRow);
+#endif
 	dolookupf(tn, "myseconddb",  __FILE__, __LINE__);
 
 	return 0;

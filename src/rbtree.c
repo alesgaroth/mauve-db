@@ -67,6 +67,22 @@ void tree_lookup(TreeNode tn, struct lookUp *lu){
 		break;
 	}
 }
+TreeNode tree_update(TreeNode tn, Row newrow, struct lookUp*lu){
+	Row r = getRow(tn);
+	if (!r) return NULL; /* it's not here!*/
+	struct treeNode *t = treenode(tn);
+	switch(lu->m(r, lu->c)){
+	case 0:
+		return newTreeNode(newrow, t->left, t->right, gettag(tn));
+	case 1:
+		return newTreeNode(r, tree_update(t->left, newrow, lu), t->right, gettag(tn));
+	case -1:
+		return newTreeNode(r, t->left, tree_update(t->right, newrow, lu), gettag(tn));
+	default:
+		fprintf(stderr, "oops\n");
+		exit(3);
+	}
+}
 Row tree_findSingle(TreeNode tn, struct lookUp *lu){
 	while(tn) {
 		Row r = getRow(tn);

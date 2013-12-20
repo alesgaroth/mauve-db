@@ -1,5 +1,6 @@
 
-enum { NAME = 128, CREATE = 129, DATABASE = 130, DROP = 131 };
+enum { NAME = 128, CREATE = 129, DATABASE = 130, DROP = 131, USE, TABLE, INTEGER,
+		NOT, NULLX, PRIMARY, KEY, AUTO_INCREMENT, VARCHAR, NUMBER };
 struct yydata {
 	char *strval;
 };
