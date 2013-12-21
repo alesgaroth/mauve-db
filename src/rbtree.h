@@ -1,8 +1,10 @@
 
 enum colors {  NoColor, CharString, Red, Black, List, Integer, Reserved,  Enum};
-typedef void *TreeNode;
-typedef void *Row;
-typedef void *Closure;
+typedef const void *TreeNode;
+typedef const void *Row;
+typedef const void *Closure;
+typedef const void *ListNode;
+typedef const void *TreeIterator;
 
 /**
 * returns 0 if matches.
@@ -34,3 +36,14 @@ TreeNode tree_deleteSingle(TreeNode tn, struct lookUp *);
 Row tree_findSingle(TreeNode tn, struct lookUp *lu);
 
 #define fixnum(x) (((x)<<3)+Integer)
+#define defix(x) (((long)(x))>>3)
+
+
+TreeIterator treei_next(TreeIterator ti);
+Row treei_value(TreeIterator it);
+TreeIterator tree_iterator(TreeNode tn);
+
+
+Row list_first(ListNode);
+ListNode list_next(ListNode);
+ListNode newList(Row left, ListNode right);

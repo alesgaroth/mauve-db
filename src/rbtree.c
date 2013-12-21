@@ -307,3 +307,51 @@ TreeNode tree_deleteSingle(TreeNode tn, struct lookUp *lu){
 	struct treeNode*t =treenode(tn);
 	return blacken(del(t->datum, t->left, t->right, Red, lu));
 }
+
+
+TreeIterator treei_next(TreeIterator it){
+	ListNode stack = (ListNode)it;
+	if (!stack)return NULL;
+	if (rightof(list_first(stack))){
+		stack = newList(rightof(list_first(stack)), list_next(stack));
+		while (leftof(list_first(stack))){
+			stack = newList(leftof(list_first(stack)), stack);
+		}
+	}else {
+		stack = list_next(stack);
+	}
+	return (TreeIterator)stack;
+}
+Row treei_value(TreeIterator it){
+	if (!it) return NULL;
+	ListNode stack = (ListNode)it;
+	return rowof(list_first(stack));
+}
+
+	
+TreeIterator tree_iterator(TreeNode tn){
+	if (!tn) return NULL;
+	ListNode stack = newList(tn, NULL);
+	
+	while (leftof(list_first(stack))){
+		stack = newList(leftof(list_first(stack)), stack);
+	}
+	return stack;
+}
+
+ListNode newList(Row item, ListNode next){
+	Row *p = heap_alloc(2*sizeof(Row));
+	p[0] = item;
+	p[1] = next;
+	return p;
+}
+Row list_first(ListNode l){
+	if(!l)return NULL;
+	Row*p = (Row*)l;
+	return p[0];
+}
+ListNode list_next(ListNode l){
+	if(!l)return NULL;
+	Row*p = (Row*)l;
+	return p[1];
+}

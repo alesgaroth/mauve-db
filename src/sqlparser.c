@@ -16,7 +16,11 @@ TreeNode dropTable(const char *db, const char *table, TreeNode tni);
 TreeNode createNewColumn(const char *db, const char *tablename, const char *columnname,
 	const char *type, int isprimarykey, int auto_increment, int notnullable, TreeNode tn);
 int report(yyscan_t scandata, const char*note);
+int report2(yyscan_t scandata, const char *note, int num);
 const char *string_dup(const char *val);
+
+TreeNode createNewRow(const char *db, const char *tablename, int numcols,
+	TreeNode colnames, ListNode colvals, ListNode cols, TreeNode tn);
 
 int main(int argc, char **argv){
 	int j;
@@ -60,6 +64,140 @@ int main(int argc, char **argv){
 				case YY_NULL:  return report(scandata, "unexpected end of file");
 				case NAME:
 					current_db = string_dup(data.strval);
+					break;
+				default: return report(scandata, "Unexpected token:");
+				}
+				break;
+			case INSERT:
+				switch(yylex(scandata)){
+				case YY_NULL:
+				case INTO:
+					switch(yylex(scandata)){
+					case YY_NULL:
+					case NAME:{
+						const char *tablename = string_dup(data.strval);
+						const char *db = current_db;
+						int colnamesdone = 0;
+						int numcols = 0;
+						TreeNode colnames = NULL;
+						ListNode cols = NULL;
+						int colsdone = 0;
+						ListNode colvals = NULL;
+						int ch = 0;
+						switch(yylex(scandata)){
+						case YY_NULL:return report(scandata, "unexpected end of file");
+						case '.':
+							db = tablename;
+							switch(yylex(scandata)){
+							case YY_NULL:return report(scandata, "unexpected end of file");
+							case NAME:
+								tablename = string_dup(data.strval);
+								break;
+							default: return report(scandata, "Unexpected token:");
+							}
+							ch = yylex(scandata);
+							if (ch == '(')
+						case '(':
+							{
+							do {
+								struct lookUp lu = { (Matcher)strcmp, NULL};
+								switch(yylex(scandata)){
+								case YY_NULL:return report(scandata, "unexpected end of file");
+								case NAME:
+									lu.c = string_dup(data.strval);
+									colnames = tree_insert(colnames, lu.c, &lu);
+									cols = newList(lu.c, cols);
+									numcols += 1;
+									switch(yylex(scandata)){
+									case YY_NULL:return report(scandata, "unexpected end of file");
+									case ')':colnamesdone = 1;/*fall through */
+									case ',':
+										break;
+									default: return report(scandata, "Unexpected token:");
+									}
+									break;
+								default: return report(scandata, "Unexpected token:");
+								}
+							} while(!colnamesdone);
+							switch(yylex(scandata)){
+							case YY_NULL:return report(scandata, "unexpected end of file");
+							case VALUES:
+								do {
+									int val;
+									switch(yylex(scandata)){
+									case YY_NULL:return report(scandata, "unexpected end of file");
+									case '(':
+										switch(val = yylex(scandata)){
+										case YY_NULL:return report(scandata, "unexpected end of file");
+										case NUMBER:  colvals = newList((Row)(long)fixnum(atoi(data.strval)), colvals);
+											break;
+										case STRING:
+											colvals = newList(string_dup(data.strval), colvals);
+											break;
+										default: return report2(scandata, "UneXpected token:", val);
+										}
+										switch(yylex(scandata)){
+										case YY_NULL:return report(scandata, "unexpected end of file");
+										case ')': colsdone = 1;
+										case ',': break;
+										default: return report(scandata, "Unexpected token:");
+										}
+										break;
+									default: return report(scandata, "Unexpected token:");
+									}
+								} while(!colsdone);
+								tn = createNewRow(db, tablename, numcols, colnames, colvals, cols, tn);
+								break;
+							default: return report(scandata, "Unexpected token:");
+							}
+
+							break;
+							} if (ch == SET){
+						case SET:
+							colsdone = 0;
+							do {
+								struct lookUp lu = { (Matcher)strcmp, NULL};
+								switch(yylex(scandata)){
+								case YY_NULL:return report(scandata, "unexpected end of file");
+								case NAME:
+									numcols += 1;
+									lu.c = string_dup(data.strval);
+									colnames = tree_insert(colnames, lu.c, &lu);
+									cols = newList(lu.c, cols);
+									switch(yylex(scandata)){
+									case YY_NULL:return report(scandata, "unexpected end of file");
+									case '=': break;
+									default: return report(scandata, "Unexpected token:");
+									}
+									switch(yylex(scandata)){
+									case YY_NULL:return report(scandata, "unexpected end of file");
+									case STRING:
+										colvals = newList(string_dup(data.strval), colvals);
+										break;
+									case NUMBER:  colvals = newList((Row)(long)fixnum(atoi(data.strval)), colvals);
+										break;
+									default: return report(scandata, "Unexpected token:");
+									}
+									switch(yylex(scandata)){
+									case YY_NULL:return report(scandata, "unexpected end of file");
+									case ';': colsdone = 1;
+									case ',': break;
+									default: return report(scandata, "Unexpected token:");
+									}
+									break;
+								case ';': colsdone = 1;
+								default: return report(scandata, "Unexpected token:");
+								}
+							} while(!colsdone);
+							tn = createNewRow(db, tablename, numcols, colnames, colvals, cols, tn);
+							break;
+							}
+						default: return report(scandata, "Unexpected token:");
+						}
+						break;
+						}
+					default: return report(scandata, "Unexpected token:");
+					}
 					break;
 				default: return report(scandata, "Unexpected token:");
 				}
@@ -258,6 +396,12 @@ int main(int argc, char **argv){
 	scandata = NULL;
 	return 0;
 }
+int report2(yyscan_t scandata, const char *note, int num){
+	fprintf(stderr, "%s:%d:%d parser error %s (%d)\"%s\"\n",
+		"stdin", yyget_lineno(scandata), yyget_column(scandata),
+		note, num, yyget_text(scandata));
+	return 1;
+}
 int report(yyscan_t scandata, const char *note){
 	fprintf(stderr, "%s:%d:%d parser error %s '%s'\n",
 		"stdin", yyget_lineno(scandata), yyget_column(scandata),
@@ -340,7 +484,7 @@ TreeNode findIndex(const char*name, TreeNode tn){
 	struct index ind = {0, name, NULL};
 	struct closure cl = {1, &ind, {1}};
 	struct lookUp lu = { RowMatcher, &cl};
-	struct index*ip =  tree_findSingle(tn, &lu);
+	const struct index*ip =  tree_findSingle(tn, &lu);
 	return ip->index;
 }
 TreeNode storeIndex(const char*name, TreeNode val, TreeNode tn){
@@ -446,4 +590,51 @@ TreeNode createNewColumn(const char *db, const char *tablename, const char *colu
 	}
 	tn = tree_insert(tn, c, &lu);
 	return storeIndex("columns_index", tn, tni);
+}
+
+
+int binsearch(const void *name, Row *pp){
+	int numitems = defix(pp[0]) - 2;
+	pp = pp + 2;
+	int k = 0;
+	for(int j = numitems/2; j <numitems; j = (numitems+k)/2){
+		int m = sign(strcmp(pp[j], name));
+		switch(m){
+		case 0: return j + 2;
+		case -1: k  = j; break;
+		case 1: numitems = j; break;
+		}
+		if (k > numitems -1){
+			break;
+		}
+	}
+	if (!strcmp(pp[k], name)) return k;
+	if (!strcmp(pp[numitems], name)) return k;
+	return 1;
+}
+
+TreeNode createNewRow(const char *db, const char *tablename, int numcols,
+		TreeNode colnames, ListNode colvals, ListNode cols, TreeNode tn){
+	Row *p = heap_alloc((2+numcols) &sizeof(p));
+	Row *pp = heap_alloc((2+numcols) &sizeof(p));
+	p[0] = pp;
+	pp[0] = (Row)(long)fixnum(2+numcols);
+	int k;
+	const void *name, *val;
+	TreeIterator it = tree_iterator(colnames);
+	for(k=2; (name = treei_value(it)); k+= 1){
+		pp[k] = name;
+		it = treei_next(it);
+	}
+	for(k = 2; cols && colvals; k += 1){
+		name = list_first(cols);
+		val = list_first(colvals);
+		cols = list_next(cols);
+		colvals = list_next(colvals);
+		p[binsearch(name, (Row*)p[0])] = val;
+	}
+	/* okay p is the row.*/
+	/* now for each index on the given table,
+		insert the row into it */
+	return tn;
 }
