@@ -49,24 +49,6 @@ static Row getRow(TreeNode tn){
 	}
 }
 
-void tree_lookup(TreeNode tn, struct lookUp *lu){
-	if (!tn) return;
-	Row r = getRow(tn);
-	if (!r)return;/*on a leaf */
-	struct treeNode *t = treenode(tn);
-	switch(lu->m(r, lu->c)){
-	case 0: 
-		tree_lookup(t->left, lu);
-		tree_lookup(t->right, lu);
-		break;
-	case 1:
-		tree_lookup(t->left, lu);
-		break;
-	case -1:
-		tree_lookup(t->right, lu);
-		break;
-	}
-}
 TreeNode tree_update(TreeNode tn, Row newrow, struct lookUp*lu){
 	Row r = getRow(tn);
 	if (!r) return NULL; /* it's not here!*/
@@ -79,8 +61,7 @@ TreeNode tree_update(TreeNode tn, Row newrow, struct lookUp*lu){
 	case -1:
 		return newTreeNode(r, t->left, tree_update(t->right, newrow, lu), gettag(tn));
 	default:
-		fprintf(stderr, "oops\n");
-		exit(3);
+		assert(0 && "unreachable code");
 	}
 }
 Row tree_findSingle(TreeNode tn, struct lookUp *lu){
@@ -308,19 +289,19 @@ TreeNode tree_deleteSingle(TreeNode tn, struct lookUp *lu){
 	return blacken(del(t->datum, t->left, t->right, Red, lu));
 }
 
+static ListNode stackupleftmost(ListNode stack){
+	while (leftof(list_first(stack))){
+		stack = newList(leftof(list_first(stack)), stack);
+	}
+	return stack;
+}
 
 TreeIterator treei_next(TreeIterator it){
 	ListNode stack = (ListNode)it;
 	if (!stack)return NULL;
-	if (rightof(list_first(stack))){
-		stack = newList(rightof(list_first(stack)), list_next(stack));
-		while (leftof(list_first(stack))){
-			stack = newList(leftof(list_first(stack)), stack);
-		}
-	}else {
-		stack = list_next(stack);
-	}
-	return (TreeIterator)stack;
+	return (TreeIterator)((rightof(list_first(stack)))
+		?stackupleftmost(newList(rightof(list_first(stack)), list_next(stack)))
+		:list_next(stack));
 }
 Row treei_value(TreeIterator it){
 	if (!it) return NULL;
@@ -328,30 +309,31 @@ Row treei_value(TreeIterator it){
 	return rowof(list_first(stack));
 }
 
-	
 TreeIterator tree_iterator(TreeNode tn){
 	if (!tn) return NULL;
-	ListNode stack = newList(tn, NULL);
-	
-	while (leftof(list_first(stack))){
-		stack = newList(leftof(list_first(stack)), stack);
-	}
-	return stack;
+	return stackupleftmost(newList(tn, NULL));
 }
 
+#define lister(p) ((ListNode)(((size_t)p)+List))
+#define list(p)  ((Row*)(((size_t)p) &-8))
+#define islist(p) (gettag(p) == List)
+
 ListNode newList(Row item, ListNode next){
+	assert(islist(next) || next == NULL);
 	Row *p = heap_alloc(2*sizeof(Row));
 	p[0] = item;
 	p[1] = next;
-	return p;
+	return lister(p);
 }
 Row list_first(ListNode l){
-	if(!l)return NULL;
-	Row*p = (Row*)l;
+	Row*p = list(l);
+	if(!p)return NULL;
+	assert(islist(l));
 	return p[0];
 }
 ListNode list_next(ListNode l){
-	if(!l)return NULL;
-	Row*p = (Row*)l;
+	Row*p = list(l);
+	if(!p)return NULL;
+	assert(islist(l));
 	return p[1];
 }

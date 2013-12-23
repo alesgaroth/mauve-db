@@ -21,6 +21,7 @@ const char *string_dup(const char *val);
 
 TreeNode createNewRow(const char *db, const char *tablename, int numcols,
 	TreeNode colnames, ListNode colvals, ListNode cols, TreeNode tn);
+int parseSQL(void);
 
 int main(int argc, char **argv){
 	int j;
@@ -43,359 +44,360 @@ int main(int argc, char **argv){
 	if (strcmp(username, "root") || strcmp(password, "password")){
 		return 1;
 	}
-	TreeNode tn = NULL;
-	tn = createIndexes();
+	return parseSQL();
+}
+int parseSQL(void){
 	struct yydata data = {NULL};
 	yyscan_t scandata;
 	if(yylex_init_extra(&data,&scandata)){
 		perror("yylex_init_extra:");
-		exit(3);
+		return 3;
 	}
-	if (expression){
-	}else {
-		int parseval;
-		const char *current_db = NULL;
-		while((parseval  = yylex(scandata))){
-			switch(parseval){
-			case ';':
+	TreeNode tn = NULL;
+	tn = createIndexes();
+	int parseval;
+	const char *current_db = NULL;
+	while((parseval  = yylex(scandata))){
+		switch(parseval){
+		case ';':
+			break;
+		case USE:
+			switch(yylex(scandata)){
+			case YY_NULL:  return report(scandata, "unexpected end of file");
+			case NAME:
+				current_db = string_dup(data.strval);
 				break;
-			case USE:
-				switch(yylex(scandata)){
-				case YY_NULL:  return report(scandata, "unexpected end of file");
-				case NAME:
-					current_db = string_dup(data.strval);
-					break;
-				default: return report(scandata, "Unexpected token:");
-				}
-				break;
-			case INSERT:
+			default: return report(scandata, "Unexpected token:");
+			}
+			break;
+		case INSERT:
+			switch(yylex(scandata)){
+			case YY_NULL:
+			case INTO:
 				switch(yylex(scandata)){
 				case YY_NULL:
-				case INTO:
+				case NAME:{
+					const char *tablename = string_dup(data.strval);
+					const char *db = current_db;
+					int colnamesdone = 0;
+					int numcols = 0;
+					TreeNode colnames = NULL;
+					ListNode cols = NULL;
+					int colsdone = 0;
+					ListNode colvals = NULL;
+					parseval = 0;
 					switch(yylex(scandata)){
-					case YY_NULL:
-					case NAME:{
-						const char *tablename = string_dup(data.strval);
-						const char *db = current_db;
-						int colnamesdone = 0;
-						int numcols = 0;
-						TreeNode colnames = NULL;
-						ListNode cols = NULL;
-						int colsdone = 0;
-						ListNode colvals = NULL;
-						int ch = 0;
+					case YY_NULL:return report(scandata, "unexpected end of file");
+					case '.':
+						db = tablename;
 						switch(yylex(scandata)){
 						case YY_NULL:return report(scandata, "unexpected end of file");
-						case '.':
-							db = tablename;
+						case NAME:
+							tablename = string_dup(data.strval);
+							break;
+						default: return report(scandata, "Unexpected token:");
+						}
+						parseval = yylex(scandata);
+						if (parseval == '(')
+					case '(':
+						{
+						do {
+							struct lookUp lu = { (Matcher)strcmp, NULL};
 							switch(yylex(scandata)){
 							case YY_NULL:return report(scandata, "unexpected end of file");
 							case NAME:
-								tablename = string_dup(data.strval);
-								break;
-							default: return report(scandata, "Unexpected token:");
-							}
-							ch = yylex(scandata);
-							if (ch == '(')
-						case '(':
-							{
-							do {
-								struct lookUp lu = { (Matcher)strcmp, NULL};
+								lu.c = string_dup(data.strval);
+								colnames = tree_insert(colnames, lu.c, &lu);
+								cols = newList(lu.c, cols);
+								numcols += 1;
 								switch(yylex(scandata)){
 								case YY_NULL:return report(scandata, "unexpected end of file");
-								case NAME:
-									lu.c = string_dup(data.strval);
-									colnames = tree_insert(colnames, lu.c, &lu);
-									cols = newList(lu.c, cols);
-									numcols += 1;
-									switch(yylex(scandata)){
-									case YY_NULL:return report(scandata, "unexpected end of file");
-									case ')':colnamesdone = 1;/*fall through */
-									case ',':
-										break;
-									default: return report(scandata, "Unexpected token:");
-									}
+								case ')':colnamesdone = 1;/*fall through */
+								case ',':
 									break;
 								default: return report(scandata, "Unexpected token:");
 								}
-							} while(!colnamesdone);
-							switch(yylex(scandata)){
-							case YY_NULL:return report(scandata, "unexpected end of file");
-							case VALUES:
-								do {
-									int val;
-									switch(yylex(scandata)){
-									case YY_NULL:return report(scandata, "unexpected end of file");
-									case '(':
-										switch(val = yylex(scandata)){
-										case YY_NULL:return report(scandata, "unexpected end of file");
-										case NUMBER:  colvals = newList((Row)(long)fixnum(atoi(data.strval)), colvals);
-											break;
-										case STRING:
-											colvals = newList(string_dup(data.strval), colvals);
-											break;
-										default: return report2(scandata, "UneXpected token:", val);
-										}
-										switch(yylex(scandata)){
-										case YY_NULL:return report(scandata, "unexpected end of file");
-										case ')': colsdone = 1;
-										case ',': break;
-										default: return report(scandata, "Unexpected token:");
-										}
-										break;
-									default: return report(scandata, "Unexpected token:");
-									}
-								} while(!colsdone);
-								tn = createNewRow(db, tablename, numcols, colnames, colvals, cols, tn);
 								break;
 							default: return report(scandata, "Unexpected token:");
 							}
-
-							break;
-							} if (ch == SET){
-						case SET:
-							colsdone = 0;
+						} while(!colnamesdone);
+						switch(yylex(scandata)){
+						case YY_NULL:return report(scandata, "unexpected end of file");
+						case VALUES:
 							do {
-								struct lookUp lu = { (Matcher)strcmp, NULL};
+								int val;
 								switch(yylex(scandata)){
 								case YY_NULL:return report(scandata, "unexpected end of file");
-								case NAME:
-									numcols += 1;
-									lu.c = string_dup(data.strval);
-									colnames = tree_insert(colnames, lu.c, &lu);
-									cols = newList(lu.c, cols);
-									switch(yylex(scandata)){
+								case '(':
+									switch(val = yylex(scandata)){
 									case YY_NULL:return report(scandata, "unexpected end of file");
-									case '=': break;
-									default: return report(scandata, "Unexpected token:");
-									}
-									switch(yylex(scandata)){
-									case YY_NULL:return report(scandata, "unexpected end of file");
+									case NUMBER:  colvals = newList((Row)(long)fixnum(atoi(data.strval)), colvals);
+										break;
 									case STRING:
 										colvals = newList(string_dup(data.strval), colvals);
 										break;
-									case NUMBER:  colvals = newList((Row)(long)fixnum(atoi(data.strval)), colvals);
-										break;
-									default: return report(scandata, "Unexpected token:");
+									default: return report2(scandata, "UneXpected token:", val);
 									}
 									switch(yylex(scandata)){
 									case YY_NULL:return report(scandata, "unexpected end of file");
-									case ';': colsdone = 1;
+									case ')': colsdone = 1;
 									case ',': break;
 									default: return report(scandata, "Unexpected token:");
 									}
 									break;
-								case ';': colsdone = 1;
 								default: return report(scandata, "Unexpected token:");
 								}
 							} while(!colsdone);
 							tn = createNewRow(db, tablename, numcols, colnames, colvals, cols, tn);
 							break;
-							}
 						default: return report(scandata, "Unexpected token:");
 						}
+
+						break;
+						} if (parseval == SET){
+					case SET:
+						colsdone = 0;
+						do {
+							struct lookUp lu = { (Matcher)strcmp, NULL};
+							switch(yylex(scandata)){
+							case YY_NULL:return report(scandata, "unexpected end of file");
+							case NAME:
+								numcols += 1;
+								lu.c = string_dup(data.strval);
+								colnames = tree_insert(colnames, lu.c, &lu);
+								cols = newList(lu.c, cols);
+								switch(yylex(scandata)){
+								case YY_NULL:return report(scandata, "unexpected end of file");
+								case '=': break;
+								default: return report(scandata, "Unexpected token:");
+								}
+								switch(yylex(scandata)){
+								case YY_NULL:return report(scandata, "unexpected end of file");
+								case STRING:
+									colvals = newList(string_dup(data.strval), colvals);
+									break;
+								case NUMBER:  colvals = newList((Row)(long)fixnum(atoi(data.strval)), colvals);
+									break;
+								default: return report(scandata, "Unexpected token:");
+								}
+								switch(yylex(scandata)){
+								case YY_NULL:return report(scandata, "unexpected end of file");
+								case ';': colsdone = 1;
+								case ',': break;
+								default: return report(scandata, "Unexpected token:");
+								}
+								break;
+							case ';': colsdone = 1;
+							default: return report(scandata, "Unexpected token:");
+							}
+						} while(!colsdone);
+						tn = createNewRow(db, tablename, numcols, colnames, colvals, cols, tn);
 						break;
 						}
+					default: return report(scandata, "Unexpected token:");
+					}
+					break;
+					}
+				default: return report(scandata, "Unexpected token:");
+				}
+				break;
+			default: return report(scandata, "Unexpected token:");
+			}
+			break;
+		case CREATE:
+			switch(yylex(scandata)){
+			case YY_NULL: return report(scandata, "unexpected end of file");
+			case DATABASE:
+				switch(yylex(scandata)){
+				case YY_NULL:  return report(scandata, "unexpected end of file");
+				case NAME:
+					switch(yylex(scandata)){
+					case YY_NULL:  return report(scandata, "unexpected end of file");
+					case ';':
+						tn = createNewDatabase(data.strval, tn);
+						break;
 					default: return report(scandata, "Unexpected token:");
 					}
 					break;
 				default: return report(scandata, "Unexpected token:");
 				}
 				break;
-			case CREATE:
+			case TABLE:
 				switch(yylex(scandata)){
-				case YY_NULL: return report(scandata, "unexpected end of file");
-				case DATABASE:
+				case YY_NULL:  return report(scandata, "unexpected end of file");
+				case NAME:{
+					const char *db = current_db;
+					const char *tablename = string_dup(data.strval);
 					switch(yylex(scandata)){
 					case YY_NULL:  return report(scandata, "unexpected end of file");
-					case NAME:
+					case '.': 
+						db = tablename;
 						switch(yylex(scandata)){
 						case YY_NULL:  return report(scandata, "unexpected end of file");
-						case ';':
-							tn = createNewDatabase(data.strval, tn);
+						case NAME:
+							tablename = string_dup(data.strval);
 							break;
 						default: return report(scandata, "Unexpected token:");
 						}
-						break;
-					default: return report(scandata, "Unexpected token:");
-					}
-					break;
-				case TABLE:
-					switch(yylex(scandata)){
-					case YY_NULL:  return report(scandata, "unexpected end of file");
-					case NAME:{
-						const char *db = current_db;
-						const char *tablename = string_dup(data.strval);
 						switch(yylex(scandata)){
 						case YY_NULL:  return report(scandata, "unexpected end of file");
-						case '.': 
-							db = tablename;
-							switch(yylex(scandata)){
-							case YY_NULL:  return report(scandata, "unexpected end of file");
-							case NAME:
-								tablename = string_dup(data.strval);
-								break;
-							default: return report(scandata, "Unexpected token:");
-							}
-							switch(yylex(scandata)){
-							case YY_NULL:  return report(scandata, "unexpected end of file");
-							case '(':
-								break;
-							default: return report(scandata, "Unexpected token:");
-							}
-							/* fall through */
 						case '(':
-							tn = createNewTable(db, tablename, tn);
-							int columnsdone = 0;
-							do {
+							break;
+						default: return report(scandata, "Unexpected token:");
+						}
+						/* fall through */
+					case '(':
+						tn = createNewTable(db, tablename, tn);
+						int columnsdone = 0;
+						do {
+							switch(yylex(scandata)){
+							case YY_NULL:  return report(scandata, "unexpected end of file");
+							case ')': columnsdone = 1; break;
+							case NAME:{
+								const char * columnname = string_dup(data.strval);
+								const char *type = NULL;
+								int notnullable = 0;
+								int isprimarykey = 0;
+								int auto_increment = 0;
 								switch(yylex(scandata)){
 								case YY_NULL:  return report(scandata, "unexpected end of file");
-								case ')': columnsdone = 1; break;
-								case NAME:{
-									const char * columnname = string_dup(data.strval);
-									const char *type = NULL;
-									int notnullable = 0;
-									int isprimarykey = 0;
-									int auto_increment = 0;
-									switch(yylex(scandata)){
-									case YY_NULL:  return report(scandata, "unexpected end of file");
-									case VARCHAR:
-										type = "VARCHAR";
-									case INTEGER:
-										if (type != NULL){
-											type = "INTEGER";
-										}
-										int thiscoldone = 0;
-										do {
+								case VARCHAR:
+									type = "VARCHAR";
+								case INTEGER:
+									if (type != NULL){
+										type = "INTEGER";
+									}
+									int thiscoldone = 0;
+									do {
+										switch(yylex(scandata)){
+										case YY_NULL:  return report(scandata, "unexpected end of file");
+										case '(':
 											switch(yylex(scandata)){
 											case YY_NULL:  return report(scandata, "unexpected end of file");
-											case '(':
+											case NUMBER:
 												switch(yylex(scandata)){
 												case YY_NULL:  return report(scandata, "unexpected end of file");
-												case NUMBER:
-													switch(yylex(scandata)){
-													case YY_NULL:  return report(scandata, "unexpected end of file");
-													case ')':
-														break;
-													default: return report(scandata, "Unexpected token:");
-													}
+												case ')':
 													break;
+												default: return report(scandata, "Unexpected token:");
+												}
+												break;
 
-												default: return report(scandata, "Unexpected token:");
-												}
-												break;
-												
-											case ')': columnsdone = 1;/*fall through */
-											case ',': thiscoldone = 1;break;
-											case NOT:
-												switch(yylex(scandata)){
-												case YY_NULL:  return report(scandata, "unexpected end of file");
-												case NULLX: notnullable = 1;
-													break;
-												default: return report(scandata, "Unexpected token:");
-												}
-												break;
-											case PRIMARY:
-												switch(yylex(scandata)){
-												case YY_NULL:  return report(scandata, "unexpected end of file");
-												case KEY: isprimarykey = 1;
-													break;
-												default: return report(scandata, "Unexpected token:");
-												}
-												break;
-											case AUTO_INCREMENT:
-												auto_increment = 1;
+											default: return report(scandata, "Unexpected token:");
+											}
+											break;
+											
+										case ')': columnsdone = 1;/*fall through */
+										case ',': thiscoldone = 1;break;
+										case NOT:
+											switch(yylex(scandata)){
+											case YY_NULL:  return report(scandata, "unexpected end of file");
+											case NULLX: notnullable = 1;
 												break;
 											default: return report(scandata, "Unexpected token:");
 											}
-										} while(!thiscoldone);
-										tn = createNewColumn(db, tablename, columnname, type, isprimarykey, auto_increment, notnullable, tn);
-										break;
-									default: return report(scandata, "Unexpected token:");
-									}
-									} /*end case NAME*/
+											break;
+										case PRIMARY:
+											switch(yylex(scandata)){
+											case YY_NULL:  return report(scandata, "unexpected end of file");
+											case KEY: isprimarykey = 1;
+												break;
+											default: return report(scandata, "Unexpected token:");
+											}
+											break;
+										case AUTO_INCREMENT:
+											auto_increment = 1;
+											break;
+										default: return report(scandata, "Unexpected token:");
+										}
+									} while(!thiscoldone);
+									tn = createNewColumn(db, tablename, columnname, type, isprimarykey, auto_increment, notnullable, tn);
 									break;
 								default: return report(scandata, "Unexpected token:");
 								}
-							} while(!columnsdone);
-							switch(yylex(scandata)){
-							case YY_NULL:  return report(scandata, "unexpected end of file");
-							case ';': break;
+								} /*end case NAME*/
+								break;
 							default: return report(scandata, "Unexpected token:");
 							}
-						break;
+						} while(!columnsdone);
+						switch(yylex(scandata)){
+						case YY_NULL:  return report(scandata, "unexpected end of file");
+						case ';': break;
+						default: return report(scandata, "Unexpected token:");
 						}
-						}/*end CASE name:*/
+					break;
+					}
+					}/*end CASE name:*/
+					break;
+				default: return report(scandata, "Unexpected token:");
+				}
+				break;
+			default: return report(scandata, "uNexpected token:");
+			}
+			break;
+		case DROP:
+			switch(yylex(scandata)){
+			case YY_NULL: return report(scandata, "unexpected end of file");
+			case DATABASE:
+				switch(yylex(scandata)){
+				case YY_NULL: return report(scandata, "unexpected end of file");
+				case NAME:
+					switch(yylex(scandata)){
+					case YY_NULL:  return report(scandata, "unexpected end of file");
+					case ';':
+						tn = dropDatabase(data.strval, tn);
 						break;
 					default: return report(scandata, "Unexpected token:");
 					}
 					break;
-				default: return report(scandata, "uNexpected token:");
+				default: return report(scandata, "unExpected token:");
 				}
 				break;
-			case DROP:
+			case TABLE:
 				switch(yylex(scandata)){
 				case YY_NULL: return report(scandata, "unexpected end of file");
-				case DATABASE:
+				case NAME: {
+					const char *tablename = string_dup(data.strval);
+					const char *db = current_db;
 					switch(yylex(scandata)){
-					case YY_NULL: return report(scandata, "unexpected end of file");
-					case NAME:
+					case YY_NULL:  return report(scandata, "unexpected end of file");
+					case '.':
+						db = tablename;
 						switch(yylex(scandata)){
 						case YY_NULL:  return report(scandata, "unexpected end of file");
-						case ';':
-							tn = dropDatabase(data.strval, tn);
+						case NAME:
+							tablename = string_dup(data.strval);
 							break;
 						default: return report(scandata, "Unexpected token:");
 						}
-						break;
-					default: return report(scandata, "unExpected token:");
-					}
-					break;
-				case TABLE:
-					switch(yylex(scandata)){
-					case YY_NULL: return report(scandata, "unexpected end of file");
-					case NAME: {
-						const char *tablename = string_dup(data.strval);
-						const char *db = current_db;
 						switch(yylex(scandata)){
 						case YY_NULL:  return report(scandata, "unexpected end of file");
-						case '.':
-							db = tablename;
-							switch(yylex(scandata)){
-							case YY_NULL:  return report(scandata, "unexpected end of file");
-							case NAME:
-								tablename = string_dup(data.strval);
-								break;
-							default: return report(scandata, "Unexpected token:");
-							}
-							switch(yylex(scandata)){
-							case YY_NULL:  return report(scandata, "unexpected end of file");
-							case ';':
-								break;
-							default: return report(scandata, "Unexpected token:");
-							}
-							/* fall through */
 						case ';':
-							tn = dropTable(db, tablename, tn);
 							break;
 						default: return report(scandata, "Unexpected token:");
 						}
-						}
+						/* fall through */
+					case ';':
+						tn = dropTable(db, tablename, tn);
 						break;
-					default: return report(scandata, "unExpected token:");
+					default: return report(scandata, "Unexpected token:");
+					}
 					}
 					break;
-				default: return report(scandata, "uneXpected token:");
+				default: return report(scandata, "unExpected token:");
 				}
 				break;
-			default: return report(scandata, "unexPected token:");
+			default: return report(scandata, "uneXpected token:");
 			}
+			break;
+		default: return report(scandata, "unexPected token:");
 		}
 	}
 	yylex_destroy(scandata);
 	scandata = NULL;
 	return 0;
 }
+
 int report2(yyscan_t scandata, const char *note, int num){
 	fprintf(stderr, "%s:%d:%d parser error %s (%d)\"%s\"\n",
 		"stdin", yyget_lineno(scandata), yyget_column(scandata),
@@ -615,8 +617,8 @@ int binsearch(const void *name, Row *pp){
 
 TreeNode createNewRow(const char *db, const char *tablename, int numcols,
 		TreeNode colnames, ListNode colvals, ListNode cols, TreeNode tn){
-	Row *p = heap_alloc((2+numcols) &sizeof(p));
-	Row *pp = heap_alloc((2+numcols) &sizeof(p));
+	Row *p = heap_alloc((2+numcols) *sizeof(p));
+	Row *pp = heap_alloc((2+numcols) *sizeof(p));
 	p[0] = pp;
 	pp[0] = (Row)(long)fixnum(2+numcols);
 	int k;

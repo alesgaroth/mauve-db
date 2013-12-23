@@ -25,10 +25,6 @@ TreeNode tree_insert(TreeNode tn, Row newrow, struct lookUp*lu);
 /* update the row, the lookup for the new row and the replaced row must be the same */
 TreeNode tree_update(TreeNode tn, Row newrow, struct lookUp*lu);
 
-
-/* call matcher on the way down the tree. */
-void tree_lookup(TreeNode tn, struct lookUp *);
-
 /* delete the row */
 TreeNode tree_deleteSingle(TreeNode tn, struct lookUp *);
 
