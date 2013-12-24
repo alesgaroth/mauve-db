@@ -46,6 +46,14 @@ int main(int argc, char **argv){
 	}
 	return parseSQL();
 }
+
+int sign(int v){
+	return (((v)==0)?0:(((v)<0)?-1:1));
+}
+int signstrcmp(const void *s1, const void *s2){
+	return sign(strcmp(s1, s2));
+}
+
 int parseSQL(void){
 	struct yydata data = {NULL};
 	yyscan_t scandata;
@@ -102,7 +110,7 @@ int parseSQL(void){
 					case '(':
 						{
 						do {
-							struct lookUp lu = { (Matcher)strcmp, NULL};
+							struct lookUp lu = { (Matcher)signstrcmp, NULL};
 							switch(yylex(scandata)){
 							case YY_NULL:return report(scandata, "unexpected end of file");
 							case NAME:
@@ -124,11 +132,11 @@ int parseSQL(void){
 						switch(yylex(scandata)){
 						case YY_NULL:return report(scandata, "unexpected end of file");
 						case VALUES:
-							do {
-								int val;
-								switch(yylex(scandata)){
-								case YY_NULL:return report(scandata, "unexpected end of file");
-								case '(':
+							switch(yylex(scandata)){
+							case YY_NULL:return report(scandata, "unexpected end of file");
+							case '(':
+								do {
+									int val;
 									switch(val = yylex(scandata)){
 									case YY_NULL:return report(scandata, "unexpected end of file");
 									case NUMBER:  colvals = newList((Row)(long)fixnum(atoi(data.strval)), colvals);
@@ -144,10 +152,10 @@ int parseSQL(void){
 									case ',': break;
 									default: return report(scandata, "Unexpected token:");
 									}
-									break;
-								default: return report(scandata, "Unexpected token:");
-								}
-							} while(!colsdone);
+								} while(!colsdone);
+								break;
+							default: return report(scandata, "Unexpected token:");
+							}
 							tn = createNewRow(db, tablename, numcols, colnames, colvals, cols, tn);
 							break;
 						default: return report(scandata, "Unexpected token:");
@@ -158,7 +166,7 @@ int parseSQL(void){
 					case SET:
 						colsdone = 0;
 						do {
-							struct lookUp lu = { (Matcher)strcmp, NULL};
+							struct lookUp lu = { (Matcher)signstrcmp, NULL};
 							switch(yylex(scandata)){
 							case YY_NULL:return report(scandata, "unexpected end of file");
 							case NAME:
@@ -451,9 +459,6 @@ struct closure {
 	int colnums[10];
 };
 
-int sign(int v){
-	return (((v)==0)?0:(((v)<0)?-1:1));
-}
 int RowMatcher(Row r_, Closure c_){
 	struct closure*c = (struct closure*)c_;
 	const char **r = (const char **)r_;
@@ -600,7 +605,7 @@ int binsearch(const void *name, Row *pp){
 	pp = pp + 2;
 	int k = 0;
 	for(int j = numitems/2; j <numitems; j = (numitems+k)/2){
-		int m = sign(strcmp(pp[j], name));
+		int m = signstrcmp(pp[j], name);
 		switch(m){
 		case 0: return j + 2;
 		case -1: k  = j; break;
@@ -627,6 +632,10 @@ TreeNode createNewRow(const char *db, const char *tablename, int numcols,
 	for(k=2; (name = treei_value(it)); k+= 1){
 		pp[k] = name;
 		it = treei_next(it);
+	}
+	if (k < numcols +2){
+		fprintf(stderr, "Multiple columns have the same name\n");
+		exit(2);
 	}
 	for(k = 2; cols && colvals; k += 1){
 		name = list_first(cols);
